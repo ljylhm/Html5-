@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="dns-prefetch" href="//file.40017.cn">
+    <meta name="viewport" content="width=750,target-densitydpi=device-dpi,user-scalable=no" />
+    <meta name="apple-mobile-web-app-capable" content="no" />
+    <meta name="format-detection" content="telephone=no" />
+    <title>贪吃蛇</title>
+</head>
+<style>
+    .score-board {
+        width: 400px;
+        height: 20px;
+        border: 1px solid black;
+    }
+</style>
+
+<body>
+    <div class="score-board"></div>
+    <!-- <canvas id="can" width="400" height="400" style="background:black;"></canvas> -->
+    <script src="https://cdn.bootcss.com/pixi.js/4.5.5/pixi.min.js "></script>
+    <script>
+        var width = 20 * 20;
+        var size = 18;
+        
+        var setShape = function (opt) {
+            var obj = new PIXI.Graphics();
+            obj.beginFill(opt.backgroundcolor);
+
+            this.drawRect = function () {
+                var arg = arguments;
+                obj.drawRect(0, 0, arg[2], arg[3]);
+                obj.x = arg[0];
+                obj.y = arg[1];
+                obj.blockIndex = getBlockIndex({
+                    x: obj.x,
+                    y: obj.y
+                })
+                obj.endFill();
+                app.stage.addChild(obj);
+                return obj;
+            }
+
+            this.clone = function () {
+                var arg = arguments,
+                    newObj = obj.clone();
+
+                if (arguments) {
+                    newObj.x = arg[0];
+                    newObj.y = arg[1];
+                    newObj.width = arg[2];
+                    newObj.height = arg[3];
+                }
+                newObj.blockIndex = getBlockIndex({
+                    x: newObj.x,
+                    y: newObj.y
+                })
+                app.stage.addChild(newObj);
+                return newObj;
+            }
+
+            this.obj = obj;
+
+        }
+        // 获取数据类型
+        var getDataType = function (obj) {
+            if (!obj) return;
+            var _type = '',
+                _type_str = '';
+
+            _type = Object.prototype.toString.call(obj);
+            _type_str = _type.substring(8, _type.length - 1);
+
+            return _type_str;
+        }
+
+        // 除法的时候 返回其整数和余数
+        var getRemainder = function (number, dividend) {
+            if (!number && number != 0) return;
+            var dividend = dividend || 1;
+            var number_obj = {
+                integer: parseInt(number / dividend),
+                remainder: number % dividend
+            }
+            return number_obj;
+        }
+        // 通过位置获取块数的顺序
+        var getBlockIndex = function (pos) {
+            var x = pos.x,
+                y = pos.y;
+            var blockIndex = (y / 20) * 20 + (x / 20);
+            return blockIndex;
+        }
+        // 获得块数的位置
+        var getBlockPos = function (blockNum) {
+            var blockNum = 0 || blockNum,
+                numObj = getRemainder(blockNum, 20);
+            return {
+                row: numObj.remainder * 20,
+                col: numObj.integer * 20
+            }
+        }
+
+        // 判断是否出界 
+        var isOut = function () {
+            var iSelf = true;
+            for (var i = 0, length = sn.length; i < length; i++) {
+                if (sn[i].blockIndex == next + fx) {
+                    iSelf = false;
+                    break;
+                }
+            }
+
+            if (!sn) return false;
+            else if (fx == 1 && head % blockSize == 19 || fx == -1 && head % blockSize == 0 || head > 399 || head < 0) {
+                return false;
+            } else if (!iSelf) { // 除了出界外 贪吃蛇还不能碰到自己 用于判断蛇不能触碰到自己的身体
+                return false;
+            } else {
+                return true;
+            }
+        }
+
+        // 得出食物随机出现的位置
+        var snakeFood = function () {
+            var getFood = (Math.random() * 400).toFixed(0);
+            var index = null,
+                indexArr = [];
+
+            for (var i = 0; i < sn.length; i++) {
+
+                index = getBlockIndex({
+                    x: sn[i].x,
+                    y: sn[i].y
+                })
+
+                indexArr.push(index);
+            }
+
+            while (indexArr.indexOf(getFood) != -1) {
+                getFood = (Math.random() * 400).toFixed(0);
+            }
+            var foodObj = new setShape({
+                backgroundcolor: 0xDC143C
+            });
+
+            food = foodObj.drawRect(getBlockPos(getFood).row, getBlockPos(getFood).col, size, size);
+        }
+        // 贪吃蛇的移动函数
+        // 这里必须得到移动的方向
+        var snakeMove = function () {
+            // 当前的头部所在的块数
+            if (!isOut()) {
+                alert("GAME OVER");
+                clearInterval(snakeProgress);
+                return;
+            }
+
+            head = getBlockIndex({
+                x: sn[0].x,
+                y: sn[0].y
+            })
+            next = head + fx;
+            var obj = parent.clone(getBlockPos(next).row, getBlockPos(next).col, size, size);
+            //console.log("here",obj.blockIndex);
+
+            head = next;
+            sn.unshift(obj)
+            if (head == getBlockIndex({
+                x: food.x,
+                y: food.y
+            })) {
+                app.stage.removeChild(food) && snakeFood();
+            } else {
+                app.stage.removeChild(sn.pop())
+            }
+
+        }
+
+
+        var sn = [0, 1, 2], // 贪吃蛇的身体
+            fx = 1, // 贪吃蛇运行的方向
+            head = 2, // 贪吃蛇的头部
+            next = 4; // 贪吃蛇下一个前进的块数
+        parent = null, // 贪吃蛇的身体一块块长方形组成，除了第一块，其他的皆由第一块克隆而来
+            picker = new PIXI.ticker.Ticker(),
+            snakeProgress = null, // 贪吃蛇运行的进程
+            food = null, // 贪吃蛇的食物 
+            foodIndex = null, // 贪吃蛇食物的索引
+            blockSize = 20, // 分块的大小 
+            flag = true; // 是否暂停的标识
+
+        // 构建一个应用
+        var app = new PIXI.Application({
+            width: width,
+            height: width,
+            antialias: true, // 平滑字体
+            backgroundColor: "0x00FF7F",
+            transparent: false
+        });
+
+        document.body.appendChild(app.view);
+        // 由于Pixi使用WebGL在GPU上呈现图像，因此图像需要采用GPU可以处理的格式。WebGL准备好的图像称为纹理。在可以让精灵显示图像之前，您需要将普通图像文件转换为WebGL纹理。为了保持所有内容快速高效地工作，Pixi使用纹理缓存来存储和引用您的精灵所需的所有纹理。纹理的名称是与它们引用的图像的文件位置相匹配的字符串
+
+        var init = function () {
+            var underControl = new setShape({
+                backgroundcolor: 0x8FBC8F
+            });
+
+            var recent1 = underControl.drawRect(0, 0, size, size);
+            // 复制以后的
+            var recent2 = underControl.clone(20, 0, size, size); // 知道当前的块数
+            var recent3 = underControl.clone(40, 0, size, size);
+            parent = underControl;
+
+            sn = [recent3, recent2, recent1]
+
+            snakeFood();
+        }
+
+        init();
+
+        document.onkeydown = function (e) {
+            // 检查当前是否有运行的贪吃蛇进程
+            if (snakeProgress && (e || event).keyCode == 32) {
+                flag = !flag;
+                if (!flag) clearInterval(snakeProgress);  // 如果是空格的话就暂停
+                else snakeProgress = setInterval(function () {
+                    snakeMove()
+                }, 200)
+            }
+
+            var code = [-1, -20, 1, 20][(e || event).keyCode - 37] || fx;
+            fx = fx + code == 0 ? fx : code;
+        }
+
+        snakeProgress = setInterval(function () {
+            snakeMove()
+        }, 200)
+
+        // picker.started = true;
+        // picker.add(function(){});
+
+
+
+
+        // var rectangle = new PIXI.Graphics();
+        // //rectangle.lineStyle(1, 0xFF3300, 1);
+        // rectangle.beginFill(0x8FBC8F);
+        // rectangle.drawRect(0, 0, size, size);
+        // rectangle.endFill();
+        // var rectangle1 = rectangle.clone();
+        // rectangle1.x = 20; rectangle.y = 0;
+        // app.stage.addChild(rectangle,rectangle1);
+
+        // rectangle1.interactive = true
+        // rectangle1.on("click",function(){
+        //     console.log(123321);
+        // })
+
+        // app.stage.click = function(){
+        //     console.log(123);
+        // }
+        // app.ticker.add(function (delta) {
+
+        //     rectangle.x += 1;
+        //     rectangle.y += 0;
+
+        // })
+
+
+
+
+
+        // PIXI.loader.add("img/demo1.jpg")
+        //     .load(function () {
+        //         // rabbit 相当于一个精灵
+        //         var rabbit = new PIXI.Sprite(PIXI.loader.resources["img/demo1.jpg"].texture);
+
+        //         rabbit.width = 100;
+        //         rabbit.height = 70;
+
+        //         rabbit.vx = 1;
+        //         rabbit.vy = 0;
+
+        //         app.stage.addChild(rabbit);
+
+        //         app.ticker.add(function (delta) {
+
+        //             rabbit.x += rabbit.vx;
+        //             rabbit.y += rabbit.vy;
+
+        //         })
+        //     });
+
+    </script>
+    <!-- <script src="./index.js"></script> -->
+</body>
+
+</html>
